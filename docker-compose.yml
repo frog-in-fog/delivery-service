@@ -3,8 +3,8 @@ version: '3.9'
 services:
   auth-service:
     build:
-      context: .
-      dockerfile: ./Dockerfile
+      context: auth-service
+      dockerfile: auth-service/Dockerfile
     restart: always
     ports:
       - 4000:4000
@@ -12,4 +12,25 @@ services:
       mode: replicated
       replicas: 1
     depends_on:
-      - fullstack-mysql
+      - postgres
+
+  postgres:
+    image: postgres:latest
+    container_name: auth_postgres
+    ports:
+      - '6500:5432'
+    volumes:
+      - progresDB:/var/lib/postgresql/data
+    env_file:
+      - ./auth-service/.env
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redisDB:/data
+volumes:
+  redisDB:
+  progresDB:
