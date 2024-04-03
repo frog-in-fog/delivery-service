@@ -1,0 +1,15 @@
+version: '3.9'
+
+services:
+  auth-service:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    restart: always
+    ports:
+      - 4000:4000
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - fullstack-mysql
