@@ -6,13 +6,12 @@ import (
 )
 
 type Config struct {
-	WebPort    string `mapstructure:"WEB_PORT"`
-	DBHost     string `mapstructure:"POSTGRES_HOST"`
-	DBPort     string `mapstructure:"POSTGRES_PORT"`
-	DBUser     string `mapstructure:"POSTGRES_USER"`
-	DBPassword string `mapstructure:"POSTGRES_PASSWORD"`
-	DBName     string `mapstructure:"POSTGRES_DB"`
-	RedisURL   string `mapstructure:"REDIS_URL"`
+	WebPort  string `mapstructure:"WEB_PORT"`
+	RedisURL string `mapstructure:"REDIS_URL"`
+
+	StoragePath     string `mapstructure:"STORAGE_PATH"`
+	MigrationsPath  string `mapstructure:"MIGRATIONS_PATH"`
+	MigrationsTable string `mapstructure:"MIGRATIONS_TABLE"`
 
 	AccessTokenPrivateKey  string        `mapstructure:"ACCESS_TOKEN_PRIVATE_KEY"`
 	AccessTokenPublicKey   string        `mapstructure:"ACCESS_TOKEN_PUBLIC_KEY"`

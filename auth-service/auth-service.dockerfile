@@ -5,11 +5,11 @@ WORKDIR /app
 
 RUN apk --no-cache add bash git make
 
-COPY ["go.mod", "go.sum", "./"]
+COPY ["auth-service/go.mod", "auth-service/go.sum", "./"]
 
 RUN go mod download
 
-COPY . .
+COPY auth-service .
 
 ENV CGO_ENABLED=0
 
@@ -19,7 +19,7 @@ RUN go build -o ./bin/app cmd/api/main.go
 FROM alpine as runner
 
 COPY --from=builder /app/bin/app /
-COPY .env /config.env
+COPY auth-service/.env /config.env
 
 EXPOSE 4000
 
