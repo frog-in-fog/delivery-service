@@ -1,9 +1,11 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"github.com/frog-in-fog/delivery-system/auth-service/internal/models"
 	"github.com/frog-in-fog/delivery-system/auth-service/internal/storage"
+	"github.com/frog-in-fog/delivery-system/auth-service/internal/storage/sqlite"
 )
 
 type AuthUsecase interface {
@@ -22,7 +24,13 @@ func NewAuthService(userStorage storage.UserStorage) AuthUsecase {
 }
 
 func (s authService) SignUpUser(user *models.User) error {
-	return errors.New("sign up works")
+	if err := s.userStorage.CreateUser(context.Background(), user); err != nil {
+		if errors.Is(err, sqlite.ErrUserAlreadyExists) {
+			return sqlite.ErrUserAlreadyExists
+		}
+		return err
+	}
+	return nil
 }
 
 func (s authService) SignInUser(user *models.User) error {

@@ -6,6 +6,12 @@ import (
 	"errors"
 	"github.com/frog-in-fog/delivery-system/auth-service/internal/models"
 	"github.com/frog-in-fog/delivery-system/auth-service/internal/storage"
+	"github.com/mattn/go-sqlite3"
+	"log"
+)
+
+var (
+	ErrUserAlreadyExists = errors.New("user already exists")
 )
 
 type sqliteDB struct {
@@ -15,6 +21,7 @@ type sqliteDB struct {
 func NewSQLiteStorage(storagePath string) (storage.UserStorage, error) {
 	db, err := sql.Open("sqlite3", storagePath)
 	if err != nil {
+		log.Println("HERE")
 		return nil, err
 	}
 
@@ -22,17 +29,17 @@ func NewSQLiteStorage(storagePath string) (storage.UserStorage, error) {
 }
 
 func (s *sqliteDB) CreateUser(ctx context.Context, user *models.User) error {
-	stmt, err := s.db.Prepare("INSERT INTO users(email, password_hash) VALUES (?, ?)")
+	stmt, err := s.db.Prepare("INSERT INTO users(id, email, password_hash) VALUES (?, ?, ?)")
 	if err != nil {
 		return err
 	}
 
-	_, err = stmt.ExecContext(ctx, user.Email, user.PasswordHash)
+	_, err = stmt.ExecContext(ctx, user.ID, user.Email, user.PasswordHash)
 	if err != nil {
-		//var sqliteErr sqlite3.Error
-		//if errors.As(err, &sqliteErr) && errors.Is(sqliteErr.ExtendedCode, sqlite3.ErrConstraintUnique) {
-		//	return errors.New("user already exists")
-		//
+		var sqliteErr sqlite3.Error
+		if errors.As(err, &sqliteErr) && errors.Is(sqliteErr.ExtendedCode, sqlite3.ErrConstraintUnique) {
+			return ErrUserAlreadyExists
+		}
 		return err
 	}
 

@@ -17,3 +17,8 @@ down:
 	@echo "Stopping docker images..."
 	docker-compose down
 	@echo "Docker stopped!"
+
+sync_db:
+	@echo "Database synchronization started..."
+	docker cp auth-service:/storage.db ~/golang-dev/delivery-system/auth-service/internal/storage/storage.db
+	@echo "Done!"
