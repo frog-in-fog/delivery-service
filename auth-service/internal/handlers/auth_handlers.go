@@ -12,15 +12,14 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"io"
-	"log"
 	"net/http"
+	"time"
 )
 
 type AuthHandler interface {
 	SignUpUser(w http.ResponseWriter, r *http.Request)
 	SignInUser(w http.ResponseWriter, r *http.Request)
 	LogoutUser(w http.ResponseWriter, r *http.Request)
-	RefreshAccessToken(w http.ResponseWriter, r *http.Request)
 }
 
 type authHandler struct {
@@ -33,7 +32,7 @@ func NewAuthHandler(authService service.AuthUsecase, cfg *config.Config) AuthHan
 }
 
 func (h *authHandler) SignUpUser(w http.ResponseWriter, r *http.Request) {
-	var payload *dto.SignUpInput
+	var payload dto.SignUpInput
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -77,7 +76,7 @@ func (h *authHandler) SignUpUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *authHandler) SignInUser(w http.ResponseWriter, r *http.Request) {
-	var payload *dto.SignInInput
+	var payload dto.SignInInput
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		utils.RenderJSON(w, err)
@@ -99,7 +98,7 @@ func (h *authHandler) SignInUser(w http.ResponseWriter, r *http.Request) {
 		PasswordHash: payload.Password,
 	}
 
-	tokenPair, err := h.authService.SignInUser(&newUser, h.cfg)
+	_, err = h.authService.SignInUser(&newUser, h.cfg)
 	if err != nil {
 		if errors.Is(err, service.ErrInvalidCredentials) {
 			utils.RenderJSON(w, service.ErrInvalidCredentials)
@@ -109,29 +108,6 @@ func (h *authHandler) SignInUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken := tokenPair["access_token"]
-	refreshToken := tokenPair["refresh_token"]
-
-	accessCookie := http.Cookie{
-		Name:     "access_token",
-		Value:    accessToken,
-		Path:     "/",
-		MaxAge:   h.cfg.AccessTokenMaxAge * 60,
-		Secure:   false,
-		HttpOnly: true,
-		Domain:   "localhost",
-	}
-
-	refreshCookie := http.Cookie{
-		Name:     "refresh_token",
-		Value:    refreshToken,
-		Path:     "/",
-		MaxAge:   h.cfg.RefreshTokenMaxAge * 60,
-		Secure:   false,
-		HttpOnly: true,
-		Domain:   "localhost",
-	}
-
 	loggedInCookie := http.Cookie{
 		Name:     "logged_in",
 		Value:    "true",
@@ -142,8 +118,6 @@ func (h *authHandler) SignInUser(w http.ResponseWriter, r *http.Request) {
 		Domain:   "localhost",
 	}
 
-	http.SetCookie(w, &accessCookie)
-	http.SetCookie(w, &refreshCookie)
 	http.SetCookie(w, &loggedInCookie)
 
 	utils.RenderJSON(w, "Logged in")
@@ -151,82 +125,31 @@ func (h *authHandler) SignInUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *authHandler) LogoutUser(w http.ResponseWriter, r *http.Request) {
-	//cookie, err := r.Cookie("refresh_token")
-	//if err != nil {
-	//	if errors.Is(err, http.ErrNoCookie) {
-	//		log.Println("Cookie refresh_token not found")
-	//		utils.RenderJSON(w, "could not refresh access token")
-	//		return
-	//	}
-	//	utils.RenderJSON(w, "could not refresh access token")
-	//}
-	//
-	//refreshToken := cookie.Value
-}
-
-func (h *authHandler) RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie("refresh_token")
+	var payload dto.LogoutInput
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		if errors.Is(err, http.ErrNoCookie) {
-			log.Println("Cookie refresh_token not found")
-			utils.RenderJSON(w, "could not refresh access token")
-			return
-		}
-		utils.RenderJSON(w, "could not refresh access token")
-	}
-
-	refreshToken := cookie.Value
-
-	refreshedTokenPair, err := h.authService.RefreshAccessToken(refreshToken, h.cfg)
-	if err != nil {
-		if errors.Is(err, service.ErrUserNotFound) {
-			utils.RenderJSON(w, service.ErrUserNotFound)
-			return
-		}
 		utils.RenderJSON(w, err)
 		return
 	}
 
-	refreshedAccessToken := refreshedTokenPair["access_token"]
-	refreshedRefreshToken := refreshedTokenPair["refresh_token"]
-
-	log.Println("Access token after: ", refreshedAccessToken)
-	log.Println("Refresh token after: ", refreshedRefreshToken)
-
-	accessCookie := http.Cookie{
-		Name:     "access_token",
-		Value:    refreshedAccessToken,
-		Path:     "/",
-		MaxAge:   h.cfg.AccessTokenMaxAge * 60,
-		Secure:   false,
-		HttpOnly: true,
-		Domain:   "localhost",
+	if err = json.Unmarshal(body, &payload); err != nil {
+		utils.RenderJSON(w, err)
+		return
 	}
 
-	refreshCookie := http.Cookie{
-		Name:     "refresh_token",
-		Value:    refreshedRefreshToken,
-		Path:     "/",
-		MaxAge:   h.cfg.RefreshTokenMaxAge * 60,
-		Secure:   false,
-		HttpOnly: true,
-		Domain:   "localhost",
+	userId := payload.UserId
+
+	if err = h.authService.LogoutUser(userId); err != nil {
+		utils.RenderJSON(w, err)
+		return
 	}
 
-	loggedInCookie := http.Cookie{
-		Name:     "logged_in",
-		Value:    "true",
-		Path:     "/",
-		MaxAge:   h.cfg.AccessTokenMaxAge * 60,
-		Secure:   false,
-		HttpOnly: false,
-		Domain:   "localhost",
+	expired := time.Now().Add(-time.Hour * 24)
+	loggedOutCookie := http.Cookie{
+		Name:    "logged_in",
+		Value:   "false",
+		Expires: expired,
 	}
 
-	http.SetCookie(w, &accessCookie)
-	http.SetCookie(w, &refreshCookie)
-	http.SetCookie(w, &loggedInCookie)
-
-	utils.RenderJSON(w, "Tokens refreshed!")
-	return
+	http.SetCookie(w, &loggedOutCookie)
 }

@@ -11,7 +11,6 @@ func (h *Handlers) InitRoutes() http.Handler {
 	router.HandleFunc("/api/v0/register", h.AuthHandler.SignUpUser)
 	router.HandleFunc("/api/v0/login", h.AuthHandler.SignInUser)
 	router.HandleFunc("/api/v0/logout", h.AuthHandler.LogoutUser)
-	router.HandleFunc("/api/v0/refresh", h.AuthHandler.RefreshAccessToken)
 
 	return router
 }

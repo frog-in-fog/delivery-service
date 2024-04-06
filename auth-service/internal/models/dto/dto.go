@@ -1,7 +1,6 @@
 package dto
 
 import (
-	"github.com/frog-in-fog/delivery-system/auth-service/internal/models"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -12,16 +11,13 @@ type SignUpInput struct {
 	Password string `json:"password" validate:"required,min=8"`
 }
 
-func FilterUserRecord(user *models.User) *models.User {
-	return &models.User{
-		ID:    user.ID,
-		Email: user.Email,
-	}
-}
-
 type SignInInput struct {
 	Email    string `json:"email"  validate:"required"`
 	Password string `json:"password"  validate:"required"`
+}
+
+type LogoutInput struct {
+	UserId string `json:"user_id" validate:"required"`
 }
 
 type ErrorResponse struct {

@@ -4,13 +4,11 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/google/uuid"
 	"time"
 )
 
 type TokenDetails struct {
 	Token     *string
-	TokenUuid string
 	UserID    string
 	ExpiresIn *int64
 }
@@ -22,7 +20,6 @@ func CreateToken(userId string, ttl time.Duration, privateKey string) (*TokenDet
 		Token:     new(string),
 	}
 	*td.ExpiresIn = now.Add(ttl).Unix()
-	td.TokenUuid = uuid.New().String()
 	td.UserID = userId
 
 	decodedPrivateKey, err := base64.StdEncoding.DecodeString(privateKey)
@@ -37,7 +34,6 @@ func CreateToken(userId string, ttl time.Duration, privateKey string) (*TokenDet
 
 	atClaims := make(jwt.MapClaims)
 	atClaims["sub"] = userId
-	atClaims["token_uuid"] = td.TokenUuid
 	atClaims["exp"] = td.ExpiresIn
 	atClaims["iat"] = now.Unix()
 	atClaims["nbf"] = now.Unix()
@@ -77,7 +73,6 @@ func ValidateToken(token string, publicKey string) (*TokenDetails, error) {
 	}
 
 	return &TokenDetails{
-		TokenUuid: fmt.Sprint(claims["token_uuid"]),
-		UserID:    fmt.Sprint(claims["sub"]),
+		UserID: fmt.Sprint(claims["sub"]),
 	}, nil
 }

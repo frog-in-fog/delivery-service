@@ -19,11 +19,16 @@ var (
 	ErrUserNotFound       = errors.New("user not found")
 )
 
+const (
+	accessSuffix  = ":access"
+	refreshSuffix = ":refresh"
+)
+
 type AuthUsecase interface {
 	SignUpUser(user *models.User) error
 	SignInUser(user *models.User, cfg *config.Config) (map[string]string, error)
 	RefreshAccessToken(refreshToken string, cfg *config.Config) (map[string]string, error)
-	LogoutUser() error
+	LogoutUser(userId string) error
 }
 
 type authService struct {
@@ -34,7 +39,7 @@ func NewAuthService(userStorage storage.UserStorage) AuthUsecase {
 	return &authService{userStorage: userStorage}
 }
 
-func (s authService) SignUpUser(user *models.User) error {
+func (s *authService) SignUpUser(user *models.User) error {
 	if err := s.userStorage.CreateUser(context.Background(), user); err != nil {
 		if errors.Is(err, sqlite.ErrUserAlreadyExists) {
 			return sqlite.ErrUserAlreadyExists
@@ -44,7 +49,7 @@ func (s authService) SignUpUser(user *models.User) error {
 	return nil
 }
 
-func (s authService) SignInUser(newUser *models.User, cfg *config.Config) (map[string]string, error) {
+func (s *authService) SignInUser(newUser *models.User, cfg *config.Config) (map[string]string, error) {
 	user, err := s.userStorage.GetUserByEmail(context.Background(), newUser.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -66,13 +71,12 @@ func (s authService) SignInUser(newUser *models.User, cfg *config.Config) (map[s
 	if err != nil {
 		return nil, err
 	}
-
-	errAccess := redis.RedisClient.Set(context.TODO(), accessTokenDetails.TokenUuid, user.ID, time.Unix(*accessTokenDetails.ExpiresIn, 0).Sub(time.Now())).Err()
+	errAccess := redis.RedisClient.Set(context.TODO(), user.ID+accessSuffix, *accessTokenDetails.Token, time.Unix(*accessTokenDetails.ExpiresIn, 0).Sub(time.Now())).Err()
 	if errAccess != nil {
 		return nil, errAccess
 	}
 
-	errRefresh := redis.RedisClient.Set(context.TODO(), refreshTokenDetails.TokenUuid, user.ID, time.Unix(*refreshTokenDetails.ExpiresIn, 0).Sub(time.Now())).Err()
+	errRefresh := redis.RedisClient.Set(context.TODO(), user.ID+refreshSuffix, *refreshTokenDetails.Token, time.Unix(*refreshTokenDetails.ExpiresIn, 0).Sub(time.Now())).Err()
 	if errRefresh != nil {
 		return nil, errRefresh
 	}
@@ -85,18 +89,13 @@ func (s authService) SignInUser(newUser *models.User, cfg *config.Config) (map[s
 
 }
 
-func (s authService) RefreshAccessToken(refreshToken string, cfg *config.Config) (map[string]string, error) {
+func (s *authService) RefreshAccessToken(refreshToken string, cfg *config.Config) (map[string]string, error) {
 	tokenClaims, err := tokens.ValidateToken(refreshToken, cfg.RefreshTokenPublicKey)
 	if err != nil {
 		return nil, err
 	}
 
-	userId, err := redis.RedisClient.Get(context.Background(), tokenClaims.TokenUuid).Result()
-	if err != nil {
-		return nil, err
-	}
-
-	user, err := s.userStorage.GetUserById(context.Background(), userId)
+	user, err := s.userStorage.GetUserById(context.Background(), tokenClaims.UserID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrUserNotFound
@@ -109,7 +108,7 @@ func (s authService) RefreshAccessToken(refreshToken string, cfg *config.Config)
 		return nil, err
 	}
 
-	errAccess := redis.RedisClient.Set(context.TODO(), accessTokenDetails.TokenUuid, user.ID, time.Unix(*accessTokenDetails.ExpiresIn, 0).Sub(time.Now())).Err()
+	errAccess := redis.RedisClient.Set(context.TODO(), user.ID+accessSuffix, *accessTokenDetails.Token, time.Unix(*accessTokenDetails.ExpiresIn, 0).Sub(time.Now())).Err()
 	if errAccess != nil {
 		return nil, errAccess
 	}
@@ -119,7 +118,7 @@ func (s authService) RefreshAccessToken(refreshToken string, cfg *config.Config)
 		return nil, err
 	}
 
-	errRefresh := redis.RedisClient.Set(context.TODO(), refreshTokenDetails.TokenUuid, user.ID, time.Unix(*accessTokenDetails.ExpiresIn, 0).Sub(time.Now())).Err()
+	errRefresh := redis.RedisClient.Set(context.TODO(), user.ID+refreshSuffix, *refreshTokenDetails.Token, time.Unix(*refreshTokenDetails.ExpiresIn, 0).Sub(time.Now())).Err()
 	if err != nil {
 		return nil, errRefresh
 	}
@@ -131,6 +130,15 @@ func (s authService) RefreshAccessToken(refreshToken string, cfg *config.Config)
 	return tokenPair, nil
 }
 
-func (s authService) LogoutUser() error {
-	return errors.New("logout works")
+func (s *authService) LogoutUser(userId string) error {
+	errDelAccessToken := redis.RedisClient.Del(context.Background(), userId+accessSuffix).Err()
+	if errDelAccessToken != nil {
+		return errDelAccessToken
+	}
+	errDelRefreshToken := redis.RedisClient.Del(context.Background(), userId+refreshSuffix).Err()
+	if errDelRefreshToken != nil {
+		return errDelRefreshToken
+	}
+
+	return nil
 }

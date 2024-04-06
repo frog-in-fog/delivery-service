@@ -30,6 +30,6 @@ func NewRedisConnection(config *config.Config) error {
 		return err
 	}
 
-	fmt.Println("✅ Redis client connected successfully...")
+	fmt.Println("✅Redis client connected successfully...")
 	return nil
 }
