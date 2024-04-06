@@ -11,7 +11,7 @@ RUN go mod download
 
 COPY auth-service .
 
-RUN GO111MODULE=on CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -tags musl --ldflags "-extldflags -static" -o ./bin/app cmd/api/main.go
+RUN GO111MODULE=on CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -tags musl --ldflags "-extldflags -static" -o ./bin/app cmd/*.go
 
 # run
 FROM alpine as runner

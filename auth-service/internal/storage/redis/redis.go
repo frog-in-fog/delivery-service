@@ -1,4 +1,4 @@
-package cmd
+package redis
 
 import (
 	"context"
@@ -7,10 +7,15 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func NewRedisConnection(config *config.Config) error {
-	ctx := context.Background()
+var (
+	RedisClient *redis.Client
+	ctx         context.Context
+)
 
-	RedisClient := redis.NewClient(&redis.Options{
+func NewRedisConnection(config *config.Config) error {
+	ctx = context.Background()
+
+	RedisClient = redis.NewClient(&redis.Options{
 		Addr:     config.RedisURL,
 		Password: "",
 		DB:       0,

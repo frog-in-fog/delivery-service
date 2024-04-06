@@ -12,6 +12,7 @@ import (
 
 var (
 	ErrUserAlreadyExists = errors.New("user already exists")
+	ErrUserNotFound      = errors.New("user not found")
 )
 
 type sqliteDB struct {
@@ -53,17 +54,17 @@ func (s *sqliteDB) GetUserByEmail(ctx context.Context, email string) (*models.Us
 	}
 
 	row := stmt.QueryRowContext(ctx, email)
-	var user *models.User
+	var user models.User
 
-	if err := row.Scan(&user.ID, &user.Email, &user.PasswordHash); err != nil {
+	if err = row.Scan(&user.ID, &user.Email, &user.PasswordHash); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return &models.User{}, err
+			return &models.User{}, sql.ErrNoRows
 		}
 
 		return &models.User{}, err
 	}
 
-	return user, nil
+	return &user, nil
 }
 
 func (s *sqliteDB) GetUserById(ctx context.Context, id string) (*models.User, error) {
@@ -75,7 +76,7 @@ func (s *sqliteDB) GetUserById(ctx context.Context, id string) (*models.User, er
 	row := stmt.QueryRowContext(ctx, id)
 	var user *models.User
 
-	if err := row.Scan(&user.ID, &user.Email, &user.PasswordHash); err != nil {
+	if err = row.Scan(&user.ID, &user.Email, &user.PasswordHash); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return &models.User{}, err
 		}

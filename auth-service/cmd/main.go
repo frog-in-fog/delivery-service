@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/frog-in-fog/delivery-system/auth-service/cmd"
 	"github.com/frog-in-fog/delivery-system/auth-service/internal/config"
+	"github.com/frog-in-fog/delivery-system/auth-service/internal/storage/redis"
 	"github.com/frog-in-fog/delivery-system/auth-service/internal/storage/sqlite"
 	"log"
 	"net/http"
@@ -35,12 +35,12 @@ func main() {
 		log.Fatalf("error creating storage: %v", err)
 	}
 
-	if err = cmd.NewRedisConnection(&cfg); err != nil {
+	if err = redis.NewRedisConnection(&cfg); err != nil {
 		log.Fatalf("error connecting to redis: %v", err)
 	}
 
 	// init http handlers
-	httpHandlers := cmd.InitHttpHandlers(&cfg, sqliteStorage)
+	httpHandlers := InitHttpHandlers(&cfg, sqliteStorage)
 	// launch http server
 	server := new(Server)
 

@@ -1,4 +1,4 @@
-package cmd
+package main
 
 import (
 	"github.com/frog-in-fog/delivery-system/auth-service/internal/config"
@@ -16,8 +16,7 @@ func InitHttpHandlers(cfg *config.Config, userStorage storage.UserStorage) *Hand
 	authService := service.NewAuthService(userStorage)
 
 	// handlers
-	authHandlers := handlers.NewAuthHandler(authService)
+	authHandlers := handlers.NewAuthHandler(authService, cfg)
 
 	return &Handlers{AuthHandler: authHandlers}
-
 }
