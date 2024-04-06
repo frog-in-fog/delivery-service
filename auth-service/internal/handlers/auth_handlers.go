@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/frog-in-fog/delivery-system/auth-service/internal/config"
 	"github.com/frog-in-fog/delivery-system/auth-service/internal/models"
 	"github.com/frog-in-fog/delivery-system/auth-service/internal/models/dto"
@@ -13,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"io"
+	"log"
 	"net/http"
 )
 
@@ -146,14 +146,87 @@ func (h *authHandler) SignInUser(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &refreshCookie)
 	http.SetCookie(w, &loggedInCookie)
 
-	utils.RenderJSON(w, fmt.Sprintf("Success! Access token: %s", tokenPair["access_token"]))
+	utils.RenderJSON(w, "Logged in")
 	return
 }
 
 func (h *authHandler) LogoutUser(w http.ResponseWriter, r *http.Request) {
-
+	//cookie, err := r.Cookie("refresh_token")
+	//if err != nil {
+	//	if errors.Is(err, http.ErrNoCookie) {
+	//		log.Println("Cookie refresh_token not found")
+	//		utils.RenderJSON(w, "could not refresh access token")
+	//		return
+	//	}
+	//	utils.RenderJSON(w, "could not refresh access token")
+	//}
+	//
+	//refreshToken := cookie.Value
 }
 
 func (h *authHandler) RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie("refresh_token")
+	if err != nil {
+		if errors.Is(err, http.ErrNoCookie) {
+			log.Println("Cookie refresh_token not found")
+			utils.RenderJSON(w, "could not refresh access token")
+			return
+		}
+		utils.RenderJSON(w, "could not refresh access token")
+	}
 
+	refreshToken := cookie.Value
+
+	refreshedTokenPair, err := h.authService.RefreshAccessToken(refreshToken, h.cfg)
+	if err != nil {
+		if errors.Is(err, service.ErrUserNotFound) {
+			utils.RenderJSON(w, service.ErrUserNotFound)
+			return
+		}
+		utils.RenderJSON(w, err)
+		return
+	}
+
+	refreshedAccessToken := refreshedTokenPair["access_token"]
+	refreshedRefreshToken := refreshedTokenPair["refresh_token"]
+
+	log.Println("Access token after: ", refreshedAccessToken)
+	log.Println("Refresh token after: ", refreshedRefreshToken)
+
+	accessCookie := http.Cookie{
+		Name:     "access_token",
+		Value:    refreshedAccessToken,
+		Path:     "/",
+		MaxAge:   h.cfg.AccessTokenMaxAge * 60,
+		Secure:   false,
+		HttpOnly: true,
+		Domain:   "localhost",
+	}
+
+	refreshCookie := http.Cookie{
+		Name:     "refresh_token",
+		Value:    refreshedRefreshToken,
+		Path:     "/",
+		MaxAge:   h.cfg.RefreshTokenMaxAge * 60,
+		Secure:   false,
+		HttpOnly: true,
+		Domain:   "localhost",
+	}
+
+	loggedInCookie := http.Cookie{
+		Name:     "logged_in",
+		Value:    "true",
+		Path:     "/",
+		MaxAge:   h.cfg.AccessTokenMaxAge * 60,
+		Secure:   false,
+		HttpOnly: false,
+		Domain:   "localhost",
+	}
+
+	http.SetCookie(w, &accessCookie)
+	http.SetCookie(w, &refreshCookie)
+	http.SetCookie(w, &loggedInCookie)
+
+	utils.RenderJSON(w, "Tokens refreshed!")
+	return
 }
