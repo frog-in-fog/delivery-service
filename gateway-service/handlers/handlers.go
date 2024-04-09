@@ -1,11 +1,12 @@
-package main
+package handlers
 
 import (
 	"encoding/json"
 	"html/template"
 	"io"
-	"log"
 	"net/http"
+
+	"github.com/frog-in-fog/delivery-system/gateway-service/models/dto"
 )
 
 var loginTemplate = template.Must(template.New("login").Parse(`
@@ -36,12 +37,8 @@ const (
 // 	loginTemplate.Execute(w, nil)
 // }
 
-type TokenPairResp struct {
-	Data string `json:"data"`
-}
-
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
-	var result TokenPairResp
+	var result dto.OneLineResp
 	req, err := http.NewRequest(http.MethodGet, "http://host.docker.internal:4000/api/v0/tokens", nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
@@ -67,7 +64,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write([]byte(body))
+	w.Write(body)
 	// if user == username && pass == password {
 	// 	http.SetCookie(w, &http.Cookie{
 	// 		Name:  "auth",
@@ -81,7 +78,6 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func Authenticate(next http.HandlerFunc) http.HandlerFunc {
-	log.Println("Authenticate")
 	return func(w http.ResponseWriter, r *http.Request) {
 		// cookie, err := r.Cookie("auth")
 		// if err != nil || cookie.Value != "true" {
@@ -95,15 +91,10 @@ func Authenticate(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-type Response struct {
-	Message string `json:"message"`
-}
-
 func Proxy(path string, target string) http.HandlerFunc {
-	log.Println("Proxy")
 	return func(w http.ResponseWriter, r *http.Request) {
 		targetURL := target + r.URL.Path
-		req, err := http.NewRequest(http.MethodGet, targetURL, nil)
+		req, err := http.NewRequest(r.Method, targetURL, nil)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
@@ -117,7 +108,7 @@ func Proxy(path string, target string) http.HandlerFunc {
 		}
 		defer resp.Body.Close()
 
-		var response Response
+		var response dto.OneLineResp
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
@@ -130,6 +121,6 @@ func Proxy(path string, target string) http.HandlerFunc {
 			return
 		}
 
-		w.Write([]byte(response.Message))
+		w.Write([]byte(response.Data))
 	}
 }

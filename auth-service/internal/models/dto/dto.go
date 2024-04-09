@@ -26,6 +26,10 @@ type ErrorResponse struct {
 	Value string `json:"value,omitempty"`
 }
 
+type OneLineResp struct {
+	Data string `json:"data"`
+}
+
 func ValidateStruct[T any](payload T) []*ErrorResponse {
 	var errors []*ErrorResponse
 	err := validate.Struct(payload)
