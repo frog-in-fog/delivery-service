@@ -2,9 +2,15 @@ package tokens
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
-	"github.com/golang-jwt/jwt/v4"
 	"time"
+
+	"github.com/golang-jwt/jwt/v4"
+)
+
+var (
+	ErrInvalidToken = errors.New("Invalid token")
 )
 
 type TokenDetails struct {
@@ -69,7 +75,7 @@ func ValidateToken(token string, publicKey string) (*TokenDetails, error) {
 
 	claims, ok := parsedToken.Claims.(jwt.MapClaims)
 	if !ok || !parsedToken.Valid {
-		return nil, fmt.Errorf("validate: invalid token")
+		return nil, ErrInvalidToken
 	}
 
 	return &TokenDetails{

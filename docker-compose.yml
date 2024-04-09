@@ -12,6 +12,7 @@ services:
     deploy:
       mode: replicated
       replicas: 1
+
   gateway-service:
     build:
       context: .
@@ -20,6 +21,18 @@ services:
     restart: always
     ports:
       - "8080:8080"
+    deploy:
+      mode: replicated
+      replicas: 1
+
+  logger-service:
+    build:
+      context: .
+      dockerfile: logger-service/logger-service.dockerfile
+    container_name: logger-service
+    restart: always
+    ports:
+      - "8081:8081"
     deploy:
       mode: replicated
       replicas: 1

@@ -3,6 +3,11 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"io"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/frog-in-fog/delivery-system/auth-service/internal/config"
 	"github.com/frog-in-fog/delivery-system/auth-service/internal/models"
 	"github.com/frog-in-fog/delivery-system/auth-service/internal/models/dto"
@@ -11,15 +16,13 @@ import (
 	"github.com/frog-in-fog/delivery-system/auth-service/utils"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
-	"io"
-	"net/http"
-	"time"
 )
 
 type AuthHandler interface {
 	SignUpUser(w http.ResponseWriter, r *http.Request)
 	SignInUser(w http.ResponseWriter, r *http.Request)
 	LogoutUser(w http.ResponseWriter, r *http.Request)
+	TokenPair(w http.ResponseWriter, r *http.Request)
 }
 
 type authHandler struct {
@@ -152,4 +155,46 @@ func (h *authHandler) LogoutUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.SetCookie(w, &loggedOutCookie)
+}
+
+type TokenPairResp struct {
+	Data string `json:"data"`
+}
+
+func (h *authHandler) TokenPair(w http.ResponseWriter, r *http.Request) {
+	accessTokenHeader := r.Header.Get("Authorization")
+	accessToken := strings.TrimPrefix(accessTokenHeader, "Bearer ")
+	if len(accessToken) == 0 {
+		resp := TokenPairResp{
+			Data: "empty access token",
+		}
+		utils.RenderJSON(w, resp)
+		return
+	}
+
+	res, err := h.authService.TokenPair(accessToken, h.cfg)
+	if err != nil {
+		resp := TokenPairResp{
+			Data: err.Error(),
+		}
+		utils.RenderJSON(w, resp)
+		return
+	}
+
+	if len(res) != 0 {
+		if res == "allowed" {
+			resp := TokenPairResp{
+				Data: "allowed",
+			}
+			utils.RenderJSON(w, resp)
+			return
+		} else {
+			resp := TokenPairResp{
+				Data: res,
+			}
+			utils.RenderJSON(w, resp)
+			return
+		}
+	}
+
 }

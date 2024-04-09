@@ -9,7 +9,9 @@ import (
 func InitRoutes() http.Handler {
 	router := mux.NewRouter()
 
-	router.HandleFunc("/", TestHandler)
+	//router.HandleFunc("/login", LoginPage)
+	router.HandleFunc("/login", LoginHandler)
+	router.HandleFunc("/logger", Authenticate(Proxy("/logger", "http://host.docker.internal:8081")))
 
 	return router
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
+
 	"github.com/frog-in-fog/delivery-system/auth-service/internal/config"
 	"github.com/frog-in-fog/delivery-system/auth-service/internal/models"
 	"github.com/frog-in-fog/delivery-system/auth-service/internal/storage"
@@ -11,12 +13,12 @@ import (
 	"github.com/frog-in-fog/delivery-system/auth-service/internal/storage/sqlite"
 	"github.com/frog-in-fog/delivery-system/auth-service/pkg/tokens"
 	"golang.org/x/crypto/bcrypt"
-	"time"
 )
 
 var (
 	ErrInvalidCredentials = errors.New("invalid email or password")
 	ErrUserNotFound       = errors.New("user not found")
+	ErrInvalidToken       = errors.New("Invalid token")
 )
 
 const (
@@ -29,6 +31,7 @@ type AuthUsecase interface {
 	SignInUser(user *models.User, cfg *config.Config) (map[string]string, error)
 	RefreshAccessToken(refreshToken string, cfg *config.Config) (map[string]string, error)
 	LogoutUser(userId string) error
+	TokenPair(accessToken string, cfg *config.Config) (string, error)
 }
 
 type authService struct {
@@ -141,4 +144,36 @@ func (s *authService) LogoutUser(userId string) error {
 	}
 
 	return nil
+}
+
+func (s *authService) TokenPair(accessToken string, cfg *config.Config) (string, error) {
+	tokenDetails, err := tokens.ValidateToken(accessToken, cfg.AccessTokenPublicKey)
+	if err != nil {
+		if errors.Is(err, tokens.ErrInvalidToken) {
+			refreshToken, err := redis.RedisClient.Get(context.Background(), tokenDetails.UserID+refreshSuffix).Result()
+			if err != nil {
+				return "", err
+			}
+			tokenPair, err := s.RefreshAccessToken(refreshToken, cfg)
+			if err != nil {
+				return "", err
+			}
+			refreshedAccessToken := tokenPair["access_token"]
+			return refreshedAccessToken, nil
+		}
+		return "", err
+	}
+
+	//userId := tokenDetails.UserID
+	//
+	// check if user exists in db
+	// _, err = s.userStorage.GetUserById(context.Background(), userId)
+	// if err != nil {
+	// 	if errors.Is(err, sql.ErrNoRows) {
+	// 		return ErrUserNotFound
+	// 	}
+	// 	return err
+	// }
+
+	return "allowed", nil
 }
