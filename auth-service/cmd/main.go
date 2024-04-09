@@ -3,15 +3,16 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/frog-in-fog/delivery-system/auth-service/internal/config"
-	"github.com/frog-in-fog/delivery-system/auth-service/internal/storage/redis"
-	"github.com/frog-in-fog/delivery-system/auth-service/internal/storage/sqlite"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/frog-in-fog/delivery-system/auth-service/internal/config"
+	"github.com/frog-in-fog/delivery-system/auth-service/internal/storage/redis"
+	"github.com/frog-in-fog/delivery-system/auth-service/internal/storage/sqlite"
 )
 
 type Server struct {

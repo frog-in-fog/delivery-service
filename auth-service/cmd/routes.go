@@ -1,12 +1,14 @@
 package main
 
 import (
-	"github.com/gorilla/mux"
 	"net/http"
+
+	"github.com/gorilla/mux"
 )
 
 func (h *Handlers) InitRoutes() http.Handler {
 	router := mux.NewRouter()
+
 
 	router.HandleFunc("/api/v0/register", h.AuthHandler.SignUpUser)
 	router.HandleFunc("/api/v0/login", h.AuthHandler.SignInUser)

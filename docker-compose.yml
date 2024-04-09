@@ -1,4 +1,4 @@
-version: '3.9'
+version: "3.9"
 
 services:
   auth-service:
@@ -8,7 +8,18 @@ services:
     container_name: auth-service
     restart: always
     ports:
-      - '4000:4000'
+      - "4000:4000"
+    deploy:
+      mode: replicated
+      replicas: 1
+  gateway-service:
+    build:
+      context: .
+      dockerfile: gateway-service/gateway-service.dockerfile
+    container_name: gateway-service
+    restart: always
+    ports:
+      - "8080:8080"
     deploy:
       mode: replicated
       replicas: 1
@@ -17,7 +28,7 @@ services:
     image: redis:alpine
     container_name: redis
     ports:
-      - '6379:6379'
+      - "6379:6379"
     volumes:
       - redisDB:/data
 
